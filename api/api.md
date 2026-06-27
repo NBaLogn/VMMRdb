@@ -5,10 +5,10 @@ Vehicle make/model classifier (ResNet50, 9170 VMMRdb classes) with optional YOLO
 ## Run
 
 ```bash
-uv run uvicorn api:app --host 0.0.0.0 --port 8000
+uv run uvicorn api:app --host 0.0.0.0 --port 8100
 ```
 
-Base URL: `http://localhost:8000`
+Base URL: `http://100.111.0.111:8100`
 
 ---
 
@@ -41,7 +41,7 @@ curl -F 'files=@car.jpg' \
      -F 'files=@clip.mp4' \
      -F 'files=@batch.zip' \
      -F 'urls=rtsp://cam.example.com/stream' \
-     'http://localhost:8000/predict?topk=5&detect=false'
+     'http://100.111.0.111:8100/predict?topk=5&detect=false'
 ```
 
 ### Response — `200 OK`
@@ -105,7 +105,7 @@ With `detect=true`: `{"name": "...", "type": "zip", "images": [{"vehicles": [...
 ## `GET /health`
 
 ```bash
-curl http://localhost:8000/health
+curl http://100.111.0.111:8100/health
 ```
 
 ```json

@@ -9,7 +9,7 @@
 
 | Variable | Default | Use |
 |----------|---------|-----|
-| `baseUrl` | `http://localhost:8000` | Change to your host/port. Edit at collection level. |
+| `baseUrl` | `http://100.111.0.111:8100` | Change to your host/port. Edit at collection level. |
 
 ## Requests
 

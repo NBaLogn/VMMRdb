@@ -1,4 +1,4 @@
-"""Simple inference API. Run: uv run uvicorn api:app --host 0.0.0.0 --port 8000
+"""Simple inference API. Run: uv run uvicorn api:app --host 0.0.0.0 --port 8100
 
 One endpoint. Smart-accepts many files at once + stream URLs:
   - images (jpg/png/webp/...)         -> 1 prediction
@@ -6,7 +6,7 @@ One endpoint. Smart-accepts many files at once + stream URLs:
   - zips                              -> predict every image inside
 
   curl -F 'files=@a.jpg' -F 'files=@clip.mp4' -F 'files=@batch.zip' \
-       -F 'urls=rtsp://cam/stream' localhost:8000/predict
+       -F 'urls=rtsp://cam/stream' http://100.111.0.111:8100/predict
 """
 import io
 import zipfile
