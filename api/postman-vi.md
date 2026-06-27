@@ -17,11 +17,12 @@
 |-----|--------|------|---------|
 | Health | GET | `/health` | Số lớp (class) + thiết bị (device). |
 | Predict — image | POST | `/predict` | `form-data` `files` = file ảnh. |
-| Predict — image + detect | POST | `/predict?detect=true` | Thêm bbox YOLO + make/model cho từng xe. |
+| Predict — image + detect | POST | `/predict?detect=true` | Thêm bbox YOLO + make/model cho từng xe (car/bus/truck). |
+| Predict — image + annotate | POST | `/predict?annotate=true` | Thêm ảnh `annotated` (base64) đã vẽ bbox. Tự bật `detect`. |
 | Predict — video | POST | `/predict` | `form-data` `files` = video; kết quả theo từng frame. |
 | Predict — zip batch | POST | `/predict` | `form-data` `files` = file zip chứa ảnh. |
 | Predict — stream URL | POST | `/predict` | `form-data` `urls` = stream rtsp/http. |
-| Predict — multi (files + url) | POST | `/predict?topk=5&detect=false` | Hỗn hợp: 2 file + 1 url trong cùng request. |
+| Predict — multi (files + url) | POST | `/predict?topk=3&detect=false` | Hỗn hợp: 2 file + 1 url trong cùng request. |
 
 ## Request gửi file
 
@@ -29,7 +30,7 @@ Các dòng `files` trong `form-data` có kiểu **File** — Postman hiện nút
 
 ## Query params
 
-`topk` (số nguyên, mặc định 5) và `detect` (bool, mặc định false) là query param, đã điền sẵn ở request multi và bật/tắt được qua tab Params.
+`topk` (số nguyên, mặc định 3), `detect` (bool, mặc định false), và `annotate` (bool, mặc định false; tự bật `detect`) là query param, đã điền sẵn ở các request liên quan và bật/tắt được qua tab Params.
 
 ## Kiểm tra nhanh
 

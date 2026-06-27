@@ -9,6 +9,7 @@ One endpoint. Smart-accepts many files at once + stream URLs:
        -F 'urls=rtsp://cam/stream' http://100.111.0.111:8100/predict
 """
 import io
+import base64
 import zipfile
 import socket
 import logging
@@ -24,7 +25,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 
 CKPT = "model.pt"
 DET_WEIGHTS = "weights/vehicle/vehicle_yolov9s_640_30oct2025.pt"
-CLASSIFY_CLS = {"car"}  # crop+classify cars only; other vehicle classes detect-only
+CLASSIFY_CLS = {"car", "bus", "truck"}  # crop+classify these; bicycle/motorbike have no VMMRdb make/model
 MAX_FRAMES = 16          # ponytail: cap frames/video so a long clip or live stream can't run forever
 FRAME_STRIDE = 15        # ~1 fps at 15fps source; raise to sample sparser
 IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif", ".tif", ".tiff"}
@@ -72,8 +73,16 @@ def yolo():  # lazy: only load detector when detect=true is first requested
     return _yolo
 
 
-def detect_frame(img: Image.Image, track: bool, topk: int):
-    """Detect vehicles, then crop+classify make/model for car/bus/truck. track=True -> persistent IDs."""
+def _annotated(res) -> str:
+    """ultralytics res.plot() -> BGR ndarray -> base64 data-URI JPEG."""
+    pil = Image.fromarray(res.plot()[..., ::-1])  # BGR -> RGB
+    b = io.BytesIO(); pil.save(b, "JPEG")
+    return "data:image/jpeg;base64," + base64.b64encode(b.getvalue()).decode()
+
+
+def detect_frame(img: Image.Image, track: bool, topk: int, annotate: bool = False):
+    """Detect vehicles, crop+classify make/model for car/bus/truck. track=True -> persistent IDs.
+    Returns {"vehicles": [...], "annotated": <data-uri>?}."""
     m = yolo()
     res = (m.track(img, persist=True, verbose=False) if track else m.predict(img, verbose=False))[0]
     vehicles, crops, to_fill = [], [], []
@@ -88,7 +97,10 @@ def detect_frame(img: Image.Image, track: bool, topk: int):
         vehicles.append(v)
     for v, p in zip(to_fill, classify(crops, topk)):
         v["make_model"] = p
-    return vehicles
+    out = {"vehicles": vehicles}
+    if annotate:
+        out["annotated"] = _annotated(res)
+    return out
 
 
 def safe_stream_url(u: str) -> str:
@@ -137,7 +149,7 @@ def sample_frames(source, options=None):
     return frames
 
 
-def handle(name: str, data: bytes, topk: int, detect: bool):
+def handle(name: str, data: bytes, topk: int, detect: bool, annotate: bool = False):
     ext = "." + name.rsplit(".", 1)[-1].lower() if "." in name else ""
     if zipfile.is_zipfile(io.BytesIO(data)):
         imgs = []
@@ -147,30 +159,31 @@ def handle(name: str, data: bytes, topk: int, detect: bool):
                     imgs.append(Image.open(io.BytesIO(z.read(m))).convert("RGB"))
         if detect:
             return {"name": name, "type": "zip",
-                    "images": [{"vehicles": detect_frame(i, False, topk)} for i in imgs]}
+                    "images": [detect_frame(i, False, topk, annotate) for i in imgs]}
         return {"name": name, "type": "zip", "predictions": classify(imgs, topk)}
     if ext in IMG_EXT:
         img = Image.open(io.BytesIO(data)).convert("RGB")
         if detect:
-            return {"name": name, "type": "image", "vehicles": detect_frame(img, False, topk)}
+            return {"name": name, "type": "image", **detect_frame(img, False, topk, annotate)}
         return {"name": name, "type": "image", "predictions": classify([img], topk)[0]}
     # else: treat as video. pipe-only protocol allowlist: a malicious container can't make
     # ffmpeg open file:/concat:/http: external resources (arbitrary file read / SSRF).
     frames = sample_frames(io.BytesIO(data), options={"protocol_whitelist": "pipe"})
     if detect:
         return {"name": name, "type": "video",
-                "frames": [{"frame": i, "vehicles": detect_frame(f, True, topk)} for i, f in enumerate(frames)]}
+                "frames": [{"frame": i, **detect_frame(f, True, topk, annotate)} for i, f in enumerate(frames)]}
     return {"name": name, "type": "video", "frames": classify(frames, topk)}
 
 
 @app.post("/predict")
 async def predict(files: List[UploadFile] = File(default=[]),
                   urls: List[str] = Form(default=[]), topk: int = 3,
-                  detect: bool = False):
+                  detect: bool = False, annotate: bool = False):
+    detect = detect or annotate  # annotation needs boxes; imply detect
     results = []
     for f in files:
         try:
-            results.append(handle(f.filename or "upload", await f.read(), topk, detect))
+            results.append(handle(f.filename or "upload", await f.read(), topk, detect, annotate))
         except Exception:
             log.exception("failed processing file %s", f.filename)
             results.append({"name": f.filename, "error": "processing failed"})
@@ -178,7 +191,7 @@ async def predict(files: List[UploadFile] = File(default=[]),
         try:
             frames = sample_frames(safe_stream_url(u), options={"protocol_whitelist": PROTO_WHITELIST})
             if detect:
-                out = [{"frame": i, "vehicles": detect_frame(f, True, topk)} for i, f in enumerate(frames)]
+                out = [{"frame": i, **detect_frame(f, True, topk, annotate)} for i, f in enumerate(frames)]
             else:
                 out = classify(frames, topk)
             results.append({"name": u, "type": "stream", "frames": out})

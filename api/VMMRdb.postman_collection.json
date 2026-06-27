@@ -33,11 +33,11 @@
       "request": {
         "method": "POST",
         "url": {
-          "raw": "{{baseUrl}}/predict?detect=true&topk=5",
+          "raw": "{{baseUrl}}/predict?detect=true&topk=3",
           "host": ["{{baseUrl}}"], "path": ["predict"],
           "query": [
             {"key": "detect", "value": "true"},
-            {"key": "topk", "value": "5"}
+            {"key": "topk", "value": "3"}
           ]
         },
         "body": {
@@ -46,6 +46,27 @@
             {"key": "files", "type": "file", "src": []}
           ]
         }
+      }
+    },
+    {
+      "name": "Predict - image + annotate",
+      "request": {
+        "method": "POST",
+        "url": {
+          "raw": "{{baseUrl}}/predict?annotate=true&topk=3",
+          "host": ["{{baseUrl}}"], "path": ["predict"],
+          "query": [
+            {"key": "annotate", "value": "true"},
+            {"key": "topk", "value": "3"}
+          ]
+        },
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {"key": "files", "type": "file", "src": []}
+          ]
+        },
+        "description": "annotate=true implies detect; response adds an `annotated` base64 data-URI image with boxes drawn."
       }
     },
     {
@@ -92,10 +113,10 @@
       "request": {
         "method": "POST",
         "url": {
-          "raw": "{{baseUrl}}/predict?topk=5&detect=false",
+          "raw": "{{baseUrl}}/predict?topk=3&detect=false",
           "host": ["{{baseUrl}}"], "path": ["predict"],
           "query": [
-            {"key": "topk", "value": "5"},
+            {"key": "topk", "value": "3"},
             {"key": "detect", "value": "false"}
           ]
         },

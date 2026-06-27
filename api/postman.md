@@ -17,11 +17,12 @@
 |------|--------|------|-------|
 | Health | GET | `/health` | Class count + device. |
 | Predict — image | POST | `/predict` | `form-data` `files` = image file. |
-| Predict — image + detect | POST | `/predict?detect=true` | Adds YOLO bbox + per-vehicle make/model. |
+| Predict — image + detect | POST | `/predict?detect=true` | Adds YOLO bbox + per-vehicle make/model (car/bus/truck). |
+| Predict — image + annotate | POST | `/predict?annotate=true` | Adds `annotated` base64 image with boxes drawn. Implies `detect`. |
 | Predict — video | POST | `/predict` | `form-data` `files` = video; per-frame results. |
 | Predict — zip batch | POST | `/predict` | `form-data` `files` = zip of images. |
 | Predict — stream URL | POST | `/predict` | `form-data` `urls` = rtsp/http stream. |
-| Predict — multi (files + url) | POST | `/predict?topk=5&detect=false` | Mixed: 2 files + 1 url in one call. |
+| Predict — multi (files + url) | POST | `/predict?topk=3&detect=false` | Mixed: 2 files + 1 url in one call. |
 
 ## File-body requests
 
@@ -29,7 +30,7 @@
 
 ## Query params
 
-`topk` (int, default 5) and `detect` (bool, default false) are query params, pre-filled on the multi-request and toggleable via the Params tab.
+`topk` (int, default 3), `detect` (bool, default false), and `annotate` (bool, default false; implies `detect`) are query params, pre-filled on the relevant requests and toggleable via the Params tab.
 
 ## Quick test
 

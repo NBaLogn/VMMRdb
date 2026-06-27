@@ -1,6 +1,6 @@
 # VMMRdb Classifier API
 
-Vehicle make/model classifier (ResNet50, 9170 VMMRdb classes) with optional YOLO vehicle detection.
+Vehicle make/model classifier (ResNet50, 9169 VMMRdb classes) with optional YOLO vehicle detection.
 
 ## Run
 
@@ -29,10 +29,11 @@ Smart-accepts mixed files **and** stream URLs in one request. Each input is auto
 |-------|------|---------|-------|
 | `files` | file (repeatable) | `[]` | Images, videos, or zips. Repeat field for multiple. |
 | `urls` | string (repeatable) | `[]` | Stream URLs. SSRF-guarded: scheme allowlist + internal/loopback/link-local hosts rejected. |
-| `topk` | int (query) | `5` | Top-K labels per prediction. |
+| `topk` | int (query) | `3` | Top-K labels per prediction. |
 | `detect` | bool (query) | `false` | `true` → run YOLO vehicle detection, then crop+classify make/model for car/bus/truck. |
+| `annotate` | bool (query) | `false` | `true` → also return an annotated image (bounding boxes drawn) as a base64 data-URI. Implies `detect`. |
 
-`topk` and `detect` are query params; `files`/`urls` are form fields.
+`topk`, `detect`, `annotate` are query params; `files`/`urls` are form fields.
 
 ### Example
 
@@ -41,7 +42,13 @@ curl -F 'files=@car.jpg' \
      -F 'files=@clip.mp4' \
      -F 'files=@batch.zip' \
      -F 'urls=rtsp://cam.example.com/stream' \
-     'http://100.111.0.111:8100/predict?topk=5&detect=false'
+     'http://100.111.0.111:8100/predict?topk=3&detect=false'
+```
+
+Annotated image (boxes drawn), single car photo:
+
+```bash
+curl -F 'files=@street.jpg' 'http://100.111.0.111:8100/predict?annotate=true' -o out.json
 ```
 
 ### Response — `200 OK`
@@ -77,6 +84,13 @@ Top-level `{"results": [...]}`, one entry per input (files first, then urls). Sh
 ```
 `make_model` is `null` for non-car/bus/truck detections (bicycle/motorbike have no VMMRdb make/model).
 
+With `annotate=true`, an `"annotated"` field is added alongside `vehicles`:
+```json
+{"name": "car.jpg", "type": "image", "vehicles": [...],
+ "annotated": "data:image/jpeg;base64,/9j/4AAQ..."}
+```
+For video/stream, `annotated` is per-frame; for zip, per-image.
+
 **Video / stream (classify):**
 ```json
 {"name": "clip.mp4", "type": "video", "frames": [[{"label": "...", "confidence": 0.7}], ...]}
@@ -93,7 +107,7 @@ Top-level `{"results": [...]}`, one entry per input (files first, then urls). Sh
 ```json
 {"name": "batch.zip", "type": "zip", "predictions": [[{"label": "...", "confidence": 0.6}], ...]}
 ```
-With `detect=true`: `{"name": "...", "type": "zip", "images": [{"vehicles": [...]}]}`
+With `detect=true`: `{"name": "...", "type": "zip", "images": [{"vehicles": [...]}]}` (each image also gets `annotated` when `annotate=true`).
 
 **Per-input error** (one bad input doesn't fail the request):
 ```json
@@ -109,7 +123,7 @@ curl http://100.111.0.111:8100/health
 ```
 
 ```json
-{"classes": 9170, "device": "cuda"}
+{"classes": 9169, "device": "cuda"}
 ```
 
 `device` is `cuda` or `cpu`.
