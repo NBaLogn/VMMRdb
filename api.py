@@ -24,7 +24,7 @@ from fastapi import FastAPI, UploadFile, File, Form
 
 CKPT = "model.pt"
 DET_WEIGHTS = "weights/vehicle/vehicle_yolov9s_640_30oct2025.pt"
-CLASSIFY_CLS = {"car", "bus", "truck"}  # crop+classify these; bicycle/motorbike have no VMMRdb make/model
+CLASSIFY_CLS = {"car"}  # crop+classify cars only; other vehicle classes detect-only
 MAX_FRAMES = 16          # ponytail: cap frames/video so a long clip or live stream can't run forever
 FRAME_STRIDE = 15        # ~1 fps at 15fps source; raise to sample sparser
 IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif", ".tif", ".tiff"}
@@ -165,7 +165,7 @@ def handle(name: str, data: bytes, topk: int, detect: bool):
 
 @app.post("/predict")
 async def predict(files: List[UploadFile] = File(default=[]),
-                  urls: List[str] = Form(default=[]), topk: int = 5,
+                  urls: List[str] = Form(default=[]), topk: int = 3,
                   detect: bool = False):
     results = []
     for f in files:
@@ -191,3 +191,8 @@ async def predict(files: List[UploadFile] = File(default=[]),
 @app.get("/health")
 def health():
     return {"classes": len(classes), "device": dev}
+
+
+if __name__ == "__main__":  # `uv run api.py` -> serves here; CLI uvicorn flags still override
+    import uvicorn
+    uvicorn.run(app, host="100.111.0.111", port=8100)
