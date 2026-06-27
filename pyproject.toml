@@ -1,0 +1,15 @@
+[project]
+name = "vmmrdb-train"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "torch",
+    "torchvision",
+    "fastapi",
+    "uvicorn[standard]",
+    "pillow",
+    "python-multipart",
+    "av>=17.1.0",
+    "numpy>=2.2.6",
+    "ultralytics>=8.4.80",
+]

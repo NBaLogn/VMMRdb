@@ -1,0 +1,45 @@
+285086 imgs, 9169 classes, dev=cuda
+class set changed (9170->9169); resuming backbone only, fresh head
+resumed from model.pt
+ep0 it0/2005 loss 9.154
+ep0 it50/2005 loss 7.656
+ep0 it100/2005 loss 6.601
+ep0 it150/2005 loss 5.793
+ep0 it200/2005 loss 5.271
+ep0 it250/2005 loss 4.660
+ep0 it300/2005 loss 4.932
+ep0 it350/2005 loss 4.542
+ep0 it400/2005 loss 4.630
+ep0 it450/2005 loss 4.041
+ep0 it500/2005 loss 3.871
+ep0 it550/2005 loss 4.539
+ep0 it600/2005 loss 3.545
+ep0 it650/2005 loss 3.736
+ep0 it700/2005 loss 3.857
+ep0 it750/2005 loss 3.378
+ep0 it800/2005 loss 4.209
+ep0 it850/2005 loss 3.584
+ep0 it900/2005 loss 3.525
+ep0 it950/2005 loss 3.579
+ep0 it1000/2005 loss 3.576
+ep0 it1050/2005 loss 3.305
+ep0 it1100/2005 loss 3.484
+ep0 it1150/2005 loss 3.522
+ep0 it1200/2005 loss 3.095
+ep0 it1250/2005 loss 3.439
+ep0 it1300/2005 loss 3.523
+ep0 it1350/2005 loss 2.999
+ep0 it1400/2005 loss 3.359
+ep0 it1450/2005 loss 3.300
+ep0 it1500/2005 loss 3.480
+ep0 it1550/2005 loss 3.279
+ep0 it1600/2005 loss 3.261
+ep0 it1650/2005 loss 3.442
+ep0 it1700/2005 loss 3.055
+ep0 it1750/2005 loss 2.797
+ep0 it1800/2005 loss 3.058
+ep0 it1850/2005 loss 3.163
+ep0 it1900/2005 loss 3.183
+ep0 it1950/2005 loss 3.285
+ep0 it2000/2005 loss 3.288
+== epoch 0: val acc 0.318
