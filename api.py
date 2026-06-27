@@ -18,10 +18,11 @@ from urllib.parse import urlparse, urlunparse
 from typing import List
 import torch
 from torchvision import models, transforms
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
 import av
 from ultralytics import YOLO
 from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import Response
 
 CKPT = "model.pt"
 DET_WEIGHTS = "weights/vehicle/vehicle_yolov9s_640_30oct2025.pt"
@@ -32,6 +33,7 @@ IMG_EXT = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".gif", ".tif", ".tiff"}
 ALLOWED_SCHEMES = {"rtsp", "rtsps", "http", "https"}
 # ffmpeg protocol allowlist — excludes file/concat/subfile/data to block arbitrary file read
 PROTO_WHITELIST = "rtsp,rtsps,tcp,udp,tls,http,https"
+CONF_MIN = 0.25          # drop make/model preds below this; empty list -> no classification
 
 log = logging.getLogger("api")
 
@@ -61,7 +63,7 @@ def classify(imgs: List[Image.Image], topk: int):
     for prob in probs:
         p, idx = prob.topk(min(topk, len(classes)))
         out.append([{"label": classes[i], "confidence": round(v.item(), 4)}
-                    for v, i in zip(p, idx)])
+                    for v, i in zip(p, idx) if v.item() >= CONF_MIN])
     return out
 
 
@@ -73,11 +75,36 @@ def yolo():  # lazy: only load detector when detect=true is first requested
     return _yolo
 
 
-def _annotated(res) -> str:
-    """ultralytics res.plot() -> BGR ndarray -> base64 data-URI JPEG."""
-    pil = Image.fromarray(res.plot()[..., ::-1])  # BGR -> RGB
-    b = io.BytesIO(); pil.save(b, "JPEG")
-    return "data:image/jpeg;base64," + base64.b64encode(b.getvalue()).decode()
+def _font(size: int):
+    try:
+        return ImageFont.truetype("DejaVuSans.ttf", size)
+    except Exception:
+        return ImageFont.load_default()  # ponytail: tiny on huge imgs; bundle a ttf if it matters
+
+
+def _draw_bytes(img: Image.Image, vehicles) -> bytes:
+    """Draw det boxes + top make/model label per vehicle -> JPEG bytes."""
+    im = img.convert("RGB").copy()
+    d = ImageDraw.Draw(im)
+    w = max(2, im.width // 600)
+    font = _font(max(14, im.width // 70))
+    for v in vehicles:
+        x1, y1, x2, y2 = v["bbox"]
+        mm = v.get("make_model")
+        label = (f'{mm[0]["label"]} {mm[0]["confidence"]:.2f}' if mm
+                 else f'{v["det_class"]} {v["det_conf"]:.2f}')
+        color = (0, 200, 0) if mm else (255, 140, 0)  # green=classified car, orange=other
+        d.rectangle([x1, y1, x2, y2], outline=color, width=w)
+        tb = d.textbbox((x1, y1), label, font=font)
+        d.rectangle([tb[0], tb[1], tb[2], tb[3]], fill=color)
+        d.text((x1, y1), label, fill=(0, 0, 0), font=font)
+    b = io.BytesIO(); im.save(b, "JPEG")
+    return b.getvalue()
+
+
+def _annotated(img: Image.Image, vehicles) -> str:
+    """JPEG bytes -> base64 data-URI."""
+    return "data:image/jpeg;base64," + base64.b64encode(_draw_bytes(img, vehicles)).decode()
 
 
 def detect_frame(img: Image.Image, track: bool, topk: int, annotate: bool = False):
@@ -96,10 +123,10 @@ def detect_frame(img: Image.Image, track: bool, topk: int, annotate: bool = Fals
             crops.append(img.crop(xyxy)); to_fill.append(v)
         vehicles.append(v)
     for v, p in zip(to_fill, classify(crops, topk)):
-        v["make_model"] = p
+        v["make_model"] = p or None  # None when all preds below CONF_MIN
     out = {"vehicles": vehicles}
     if annotate:
-        out["annotated"] = _annotated(res)
+        out["annotated"] = _annotated(img, vehicles)
     return out
 
 
@@ -178,8 +205,15 @@ def handle(name: str, data: bytes, topk: int, detect: bool, annotate: bool = Fal
 @app.post("/predict")
 async def predict(files: List[UploadFile] = File(default=[]),
                   urls: List[str] = Form(default=[]), topk: int = 3,
-                  detect: bool = False, annotate: bool = False):
+                  detect: bool = False, annotate: bool = False,
+                  image: bool = False):
     detect = detect or annotate  # annotation needs boxes; imply detect
+    if image:  # return the annotated first image as raw JPEG (so Postman/browser renders it)
+        if not files:
+            return {"error": "image=true needs an uploaded image file"}
+        img = Image.open(io.BytesIO(await files[0].read())).convert("RGB")
+        out = detect_frame(img, False, topk)  # classifies cars -> make_model
+        return Response(_draw_bytes(img, out["vehicles"]), media_type="image/jpeg")
     results = []
     for f in files:
         try:

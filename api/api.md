@@ -31,9 +31,12 @@ Smart-accepts mixed files **and** stream URLs in one request. Each input is auto
 | `urls` | string (repeatable) | `[]` | Stream URLs. SSRF-guarded: scheme allowlist + internal/loopback/link-local hosts rejected. |
 | `topk` | int (query) | `3` | Top-K labels per prediction. |
 | `detect` | bool (query) | `false` | `true` → run YOLO vehicle detection, then crop+classify make/model for car/bus/truck. |
-| `annotate` | bool (query) | `false` | `true` → also return an annotated image (bounding boxes drawn) as a base64 data-URI. Implies `detect`. |
+| `annotate` | bool (query) | `false` | `true` → also return an annotated image (boxes + top make/model label drawn) as a base64 data-URI. Implies `detect`. |
+| `image` | bool (query) | `false` | `true` → return the annotated **first** image as a raw `image/jpeg` body (renders in Postman/browser) instead of JSON. Implies `detect`. |
 
-`topk`, `detect`, `annotate` are query params; `files`/`urls` are form fields.
+`topk`, `detect`, `annotate`, `image` are query params; `files`/`urls` are form fields.
+
+Make/model labels below `confidence` **0.25** are dropped (`make_model` becomes `null` / pred list omits them). Annotated boxes: green = classified car (shows `make_model 0.xx`), orange = other/unclassified (shows `det_class 0.xx`).
 
 ### Example
 
@@ -45,10 +48,16 @@ curl -F 'files=@car.jpg' \
      'http://100.111.0.111:8100/predict?topk=3&detect=false'
 ```
 
-Annotated image (boxes drawn), single car photo:
+Annotated image (boxes + labels drawn) as base64 in JSON:
 
 ```bash
 curl -F 'files=@street.jpg' 'http://100.111.0.111:8100/predict?annotate=true' -o out.json
+```
+
+Annotated image as a raw JPEG you can open directly:
+
+```bash
+curl -F 'files=@street.jpg' 'http://100.111.0.111:8100/predict?image=true' -o out.jpg
 ```
 
 ### Response — `200 OK`
@@ -82,7 +91,7 @@ Top-level `{"results": [...]}`, one entry per input (files first, then urls). Sh
   ]
 }
 ```
-`make_model` is `null` for non-car/bus/truck detections (bicycle/motorbike have no VMMRdb make/model).
+`make_model` is `null` for non-car/bus/truck detections (bicycle/motorbike have no VMMRdb make/model), and also when every pred is below the 0.25 confidence floor.
 
 With `annotate=true`, an `"annotated"` field is added alongside `vehicles`:
 ```json
